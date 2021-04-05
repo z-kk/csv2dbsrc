@@ -1,41 +1,8 @@
 import
   os, strutils, json,
   rdstdin, terminal
-
-type
-  DbType = enum
-    sqlite = 1,
-    mysql
-
-  JsonKey = enum
-    dbType,
-    dbFileName,
-    dbHost,
-    dbUser,
-    dbPass,
-    dbName
-
-  CsvTitles = enum
-    name,
-    comment,
-    data_type,
-    length,
-    default,
-    not_null,
-    is_primary
-
-  DbConf = object
-    dbType: DbType  ## database type
-    dbFileName: string  ## database file name (sqlite)
-    dbHost: string  ## database host name
-    dbUser: string  ## database user name
-    dbPass: string  ## database password (not saved)
-    dbName: string  ## dbname
-
-const
-  DbConfFile = "dbConf.json"
-  CsvDir = "csvDir"
-  SampleCsv = "sample.csv"
+import
+  csv2dbpkg / [variables, makeNimFile]
 
 var
   isExist: bool
@@ -94,7 +61,7 @@ proc readConf(): DbConf =
     echo "input database file name"
     let res = readLineFromStdin(">> ")
     conf[$dbFileName] = %res
-    result.dbFileName = res
+  result.dbFileName = conf[$dbFileName].getStr
 
   if result.dbType == mysql:
     if $dbHost notin conf:
@@ -158,11 +125,11 @@ proc makeSampleCsv(conf: DbConf) =
     res[4].add($13)
     res[5].add("")
 
-  res[0].add($default)
+  res[0].add($default_val)
   res[1].add("")
   res[2].add("")
   res[3].add("")
-  res[4].add("")
+  res[4].add("'000-0000-0000'")
   res[5].add($1)
 
   res[0].add($not_null)
@@ -187,7 +154,7 @@ when isMainModule:
   readNimble()
   let conf = readConf()
   if isExist:
-    discard
+    conf.makeNimFile(pkgDir)
   else:
     conf.makeSampleCsv
     echo "make database table csv referencing ", pkgDir / CsvDir / SampleCsv
