@@ -55,7 +55,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     of floatType:
       res &= "float"
     of dateType:
-      res &= col.dataType
+      res &= "DateTime"
     else:
       res &= "string"
     res &= "\n"
