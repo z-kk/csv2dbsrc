@@ -31,7 +31,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     col.comment = cp.rowEntry($comment)
     col.dataType = cp.rowEntry($data_type)
     if $length in cp.headers:
-      col.length = cp.rowEntry($length).parseInt
+      col.length = try: cp.rowEntry($length).parseInt except: 0
     col.defaultVal = cp.rowEntry($default_val)
     col.notNull = cp.rowEntry($not_null) notin ["", "0"]
     col.isPrimary = cp.rowEntry($is_primary) notin ["", "0"]
@@ -73,7 +73,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     if col.isPrimary:
       res &= " primary key"
     if conf.dbType == mysql and col.comment != "":
-      res &= &" comment '{col.comment}'"
+      res &= " comment '" & col.comment.replace("'", "\\'") & "'"
     res &= ",\n"
   res = res[0..^3] & "\n  )\"\"\".sql\n"
   res &= "  db.exec(sql)"

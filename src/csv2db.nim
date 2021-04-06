@@ -57,11 +57,12 @@ proc readConf(): DbConf =
         continue
   result.dbType = DbType(conf[$dbType].getInt)
 
-  if result.dbType == sqlite and $dbFileName notin conf:
-    echo "input database file name"
-    let res = readLineFromStdin(">> ")
-    conf[$dbFileName] = %res
-  result.dbFileName = conf[$dbFileName].getStr
+  if result.dbType == sqlite:
+    if $dbFileName notin conf:
+      echo "input database file name"
+      let res = readLineFromStdin(">> ")
+      conf[$dbFileName] = %res
+    result.dbFileName = conf[$dbFileName].getStr
 
   if result.dbType == mysql:
     if $dbHost notin conf:
@@ -101,7 +102,7 @@ proc makeSampleCsv(conf: DbConf) =
   res[2].add("user name")
   res[3].add("")
   res[4].add("")
-  res[5].add("user's groop id")
+  res[5].add("user's group id")
 
   res[0].add($data_type)
   case conf.dbType
