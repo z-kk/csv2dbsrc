@@ -14,9 +14,28 @@ type
 
 const
   ParentFile = "dbtables.nim"
+  DateFormat = "yyyy-MM-dd"
+  DateTimeFormat = "yyyy-MM-dd HH:mm:ss"
   intType = ["integer", "int", "tinyint", "smallint", "mediumint", "bigint", "boolean"]
   floatType = ["real", "float", "double", "decimal", "numeric"]
   dateType = ["date", "datetime"]
+
+proc toValueString(col: ColumnInfo, valName: string): string =
+  ## make string to match ColumnInfo
+  result = valName & "." & col.name
+  case col.dataType.toLowerAscii
+  of intType, floatType:
+    result = "{" & result & "}"
+  of dateType:
+    case col.dataType.toLowerAscii
+    of "date":
+      result &= &".format({DateFormat})"
+      result = "date('{" & result & "}')"
+    of "datetime":
+      result &= &".format({DateTimeFormat})"
+      result = "datetime('{" & result & "}')"
+  else:
+    result = "'{" & result & "}'"
 
 proc readCsv(fileName: string, conf: DbConf) =
   ## read csv file and make nim file
@@ -37,8 +56,11 @@ proc readCsv(fileName: string, conf: DbConf) =
     col.isPrimary = cp.rowEntry($is_primary) notin ["", "0"]
     cols.add(col)
 
-  let tableName = fileName.extractFilename.replace(".csv")
-  var res: string = "import\n  "
+  let
+    tableName = fileName.extractFilename.changeFileExt("")
+    tableCls = tableName.toCamelCase(true) & "Table"
+  var res: string = "import\n"
+  res &= "  strformat,\n  "
   case conf.dbType
   of sqlite:
     res &= "db_sqlite"
@@ -46,7 +68,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= "db_mysql"
 
   res &= "\ntype\n  "
-  res &= tableName.toCamelCase(true) & "Table* = object\n"
+  res &= tableCls & "* = object\n"
   for col in cols:
     res &= &"    {col.name}*: "
     case col.dataType.toLowerAscii
@@ -60,7 +82,7 @@ proc readCsv(fileName: string, conf: DbConf) =
       res &= "string"
     res &= "\n"
 
-  res &= "proc create" & tableName.toCamelCase(true) & "Table*(db: DbConn) =\n"
+  res &= &"proc create{tableCls}*(db: DbConn) =\n"
   res &= "  let sql = \"\"\"create table if not exists " & tableName & "(\n"
   for col in cols:
     res &= &"    {col.name} {col.dataType}"
@@ -76,9 +98,42 @@ proc readCsv(fileName: string, conf: DbConf) =
       res &= " comment '" & col.comment.replace("'", "\\'") & "'"
     res &= ",\n"
   res = res[0..^3] & "\n  )\"\"\".sql\n"
-  res &= "  db.exec(sql)"
+  res &= "  db.exec(sql)\n"
 
-  writeFile(fileName.toCamelCase.replace(".csv", ".nim"), res)
+  let valName = "rowData"
+  res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+  res &= "  var sql = \"insert into " & tableName & "(\"\n"
+  for col in cols:
+    if col.isPrimary:
+      res &= &"  if {valName}.{col.name} > 0:\n"
+      res &= &"    sql &= \"{col.name},\"\n"
+      break
+  res &= "  sql &= \"\"\""
+  for col in cols:
+    if col.isPrimary:
+      continue
+    res &= col.name & ","
+  res[^1] = '\n'
+  res &= "    ) values (\"\"\"\n"
+  for col in cols:
+    if col.isPrimary:
+      res &= &"  if {valName}.{col.name} > 0:\n"
+      res &= &"    sql &= &\"{{{valName}.{col.name}}},\"\n"
+      break
+  res &= "  sql &= &\""
+  for col in cols:
+    if col.isPrimary:
+      continue
+    res &= col.toValueString(valName) & ","
+  res[^1] = '"'
+  res &= "\n  sql &= \")\"\n"
+  res &= "  db.exec(sql.sql)\n"
+
+  res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
+  res &= &"  for {valName} in {valName}Seq:\n"
+  res &= &"    db.insert{tableCls}({valName})\n"
+
+  writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
 proc makeNimFile*(conf: DbConf, pkgDir: string) =
   ## make nim file from table csv
