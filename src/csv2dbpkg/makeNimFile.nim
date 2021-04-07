@@ -96,6 +96,8 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     res &= "db_sqlite"
   of mysql:
     res &= "db_mysql"
+    if conf.dbPass == "":
+      res &= ",\n  terminal"
   res &= ",\n  " & CsvDir & " / [" & nimFiles.join(", ") & "]\n"
   res &= "export\n  "
   case conf.dbType
@@ -103,8 +105,10 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     res &= "db_sqlite"
   of mysql:
     res &= "db_mysql"
-  res &= "\n,  " & nimFiles.join(", ") & "\n"
+  res &= ",\n  " & nimFiles.join(", ") & "\n"
   res &= "proc openDb*(): DbConn =\n"
+  if conf.dbType == mysql and conf.dbPass == "":
+    res &= &"  let passwd = readPasswordFromStdin(\"database password(user: {conf.dbUser}): \")\n"
   res &= "  return open("
   case conf.dbType
   of sqlite:
@@ -112,7 +116,10 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   of mysql:
     res &= '"' & conf.dbHost & "\","
     res &= '"' & conf.dbUser & "\","
-    res &= '"' & conf.dbPass & "\","
+    if conf.dbPass != "":
+      res &= '"' & conf.dbPass & "\","
+    else:
+      res &= "passwd,"
     res &= '"' & conf.dbName & '"'
   res &= ")\n"
   res &= "proc createTables*(db: DbConn) =\n"

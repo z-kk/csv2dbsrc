@@ -72,8 +72,11 @@ proc readConf(): DbConf =
       echo "input database user name"
       conf[$dbUser] = %readLineFromStdin(">> ")
     if $dbPass notin conf:
-      echo "input database password"
-      result.dbPass = readPasswordFromStdin()
+      let res = readLineFromStdin("save password?[y/N]: ")
+      if res.toLowerAscii == "y":
+        echo "input database password"
+        result.dbPass = readPasswordFromStdin()
+        conf[$dbPass] = %result.dbPass
     else:
       result.dbPass = conf[$dbPass].getStr
     if $dbName notin conf:
