@@ -60,7 +60,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     tableName = fileName.extractFilename.changeFileExt("")
     tableCls = tableName.toCamelCase(true) & "Table"
   var res: string = "import\n"
-  res &= "  strformat,\n  "
+  res &= "  strutils, strformat,\n  "
   for col in cols:
     if col.dataType.toLowerAscii in dateType:
       res &= "times,\n  "
@@ -138,6 +138,34 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
     res &= &"    db.insert{tableCls}({valName})\n"
+
+  block selectTable:
+    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderStr = \"\"): seq[{tableCls}] =\n"
+    res &= &"  var sql = \"select * from {tableName}\"\n"
+    res &= "  if whereStr != \"\":\n"
+    res &= "    sql &= \" where \" & whereStr\n"
+    res &= "  if orderStr != \"\":\n"
+    res &= "    sql &= \" order by \" & orderStr\n"
+    res &= "  let rows = db.getAllRows(sql.sql)\n"
+    res &= "  for row in rows:\n"
+    res &= &"    var res: {tableCls}\n"
+    for i in 0 ..< cols.len:
+      let col = cols[i]
+      res &= &"    res.{col.name} = row[{i}]"
+      case col.dataType.toLowerAscii
+      of intType:
+        res &= ".parseInt\n"
+      of floatType:
+        res &= ".parseFloat\n"
+      of dateType:
+        case col.dataType.toLowerAscii
+        of "date":
+          res &= &".parse(\"{DateFormat}\")\n"
+        of "datetime":
+          res &= &".parse(\"{DateTimeFormat}\")\n"
+      else:
+        res &= "\n"
+    res &= "    result.add(res)\n"
 
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
