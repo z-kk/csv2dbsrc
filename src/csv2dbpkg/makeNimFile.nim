@@ -29,11 +29,11 @@ proc toValueString(col: ColumnInfo, valName: string): string =
   of dateType:
     case col.dataType.toLowerAscii
     of "date":
-      result &= &".format({DateFormat})"
-      result = "date('{" & result & "}')"
+      result &= &".format(\"{DateFormat}\")"
+      result = "date('\" & " & result & " & \"')"
     of "datetime":
-      result &= &".format({DateTimeFormat})"
-      result = "datetime('{" & result & "}')"
+      result &= &".format(\"{DateTimeFormat}\")"
+      result = "datetime('\" & " & result & " & \"')"
   else:
     result = "'{" & result & "}'"
 
@@ -61,6 +61,10 @@ proc readCsv(fileName: string, conf: DbConf) =
     tableCls = tableName.toCamelCase(true) & "Table"
   var res: string = "import\n"
   res &= "  strformat,\n  "
+  for col in cols:
+    if col.dataType.toLowerAscii in dateType:
+      res &= "times,\n  "
+      break
   case conf.dbType
   of sqlite:
     res &= "db_sqlite"
@@ -82,56 +86,58 @@ proc readCsv(fileName: string, conf: DbConf) =
       res &= "string"
     res &= "\n"
 
-  res &= &"proc create{tableCls}*(db: DbConn) =\n"
-  res &= "  let sql = \"\"\"create table if not exists " & tableName & "(\n"
-  for col in cols:
-    res &= &"    {col.name} {col.dataType}"
-    if col.length > 0:
-      res &= &"({col.length})"
-    if col.defaultVal != "":
-      res &= &" default {col.defaultVal}"
-    if col.notNull:
-      res &= " not null"
-    if col.isPrimary:
-      res &= " primary key"
-    if conf.dbType == mysql and col.comment != "":
-      res &= " comment '" & col.comment.replace("'", "\\'") & "'"
-    res &= ",\n"
-  res = res[0..^3] & "\n  )\"\"\".sql\n"
-  res &= "  db.exec(sql)\n"
+  block createTable:
+    res &= &"proc create{tableCls}*(db: DbConn) =\n"
+    res &= "  let sql = \"\"\"create table if not exists " & tableName & "(\n"
+    for col in cols:
+      res &= &"    {col.name} {col.dataType}"
+      if col.length > 0:
+        res &= &"({col.length})"
+      if col.defaultVal != "":
+        res &= &" default {col.defaultVal}"
+      if col.notNull:
+        res &= " not null"
+      if col.isPrimary:
+        res &= " primary key"
+      if conf.dbType == mysql and col.comment != "":
+        res &= " comment '" & col.comment.replace("'", "\\'") & "'"
+      res &= ",\n"
+    res = res[0..^3] & "\n  )\"\"\".sql\n"
+    res &= "  db.exec(sql)\n"
 
-  let valName = "rowData"
-  res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
-  res &= "  var sql = \"insert into " & tableName & "(\"\n"
-  for col in cols:
-    if col.isPrimary:
-      res &= &"  if {valName}.{col.name} > 0:\n"
-      res &= &"    sql &= \"{col.name},\"\n"
-      break
-  res &= "  sql &= \"\"\""
-  for col in cols:
-    if col.isPrimary:
-      continue
-    res &= col.name & ","
-  res[^1] = '\n'
-  res &= "    ) values (\"\"\"\n"
-  for col in cols:
-    if col.isPrimary:
-      res &= &"  if {valName}.{col.name} > 0:\n"
-      res &= &"    sql &= &\"{{{valName}.{col.name}}},\"\n"
-      break
-  res &= "  sql &= &\""
-  for col in cols:
-    if col.isPrimary:
-      continue
-    res &= col.toValueString(valName) & ","
-  res[^1] = '"'
-  res &= "\n  sql &= \")\"\n"
-  res &= "  db.exec(sql.sql)\n"
+  block insertRow:
+    let valName = "rowData"
+    res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+    res &= "  var sql = \"insert into " & tableName & "(\"\n"
+    for col in cols:
+      if col.isPrimary:
+        res &= &"  if {valName}.{col.name} > 0:\n"
+        res &= &"    sql &= \"{col.name},\"\n"
+        break
+    res &= "  sql &= \"\"\""
+    for col in cols:
+      if col.isPrimary:
+        continue
+      res &= col.name & ","
+    res[^1] = '\n'
+    res &= "    ) values (\"\"\"\n"
+    for col in cols:
+      if col.isPrimary:
+        res &= &"  if {valName}.{col.name} > 0:\n"
+        res &= &"    sql &= &\"{{{valName}.{col.name}}},\"\n"
+        break
+    res &= "  sql &= &\""
+    for col in cols:
+      if col.isPrimary:
+        continue
+      res &= col.toValueString(valName) & ","
+    res[^1] = '"'
+    res &= "\n  sql &= \")\"\n"
+    res &= "  db.exec(sql.sql)\n"
 
-  res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
-  res &= &"  for {valName} in {valName}Seq:\n"
-  res &= &"    db.insert{tableCls}({valName})\n"
+    res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
+    res &= &"  for {valName} in {valName}Seq:\n"
+    res &= &"    db.insert{tableCls}({valName})\n"
 
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 

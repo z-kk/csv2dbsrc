@@ -99,6 +99,7 @@ proc makeSampleCsv(conf: DbConf) =
   res.add(@["address"])
   res.add(@["tel"])
   res.add(@["group_id"])
+  res.add(@["updated_at"])
 
   res[0].add($comment)
   res[1].add("user id")
@@ -106,6 +107,7 @@ proc makeSampleCsv(conf: DbConf) =
   res[3].add("")
   res[4].add("")
   res[5].add("user's group id")
+  res[6].add("updated date time")
 
   res[0].add($data_type)
   case conf.dbType
@@ -115,12 +117,14 @@ proc makeSampleCsv(conf: DbConf) =
     res[3].add("TEXT")
     res[4].add("TEXT")
     res[5].add("INTEGER")
+    res[6].add("DATETIME")
   of mysql:
     res[1].add("int")
     res[2].add("varchar")
     res[3].add("varchar")
     res[4].add("varchar")
     res[5].add("int")
+    res[6].add("datetime")
 
     res[0].add($length)
     res[1].add("")
@@ -128,6 +132,7 @@ proc makeSampleCsv(conf: DbConf) =
     res[3].add($100)
     res[4].add($13)
     res[5].add("")
+    res[6].add("")
 
   res[0].add($default_val)
   res[1].add("")
@@ -135,6 +140,7 @@ proc makeSampleCsv(conf: DbConf) =
   res[3].add("")
   res[4].add("'000-0000-0000'")
   res[5].add($1)
+  res[6].add("'9999-12-31'")
 
   res[0].add($not_null)
   res[1].add($1)
@@ -142,6 +148,7 @@ proc makeSampleCsv(conf: DbConf) =
   res[3].add("")
   res[4].add("")
   res[5].add($1)
+  res[6].add($1)
 
   res[0].add($is_primary)
   res[1].add($1)
@@ -149,6 +156,7 @@ proc makeSampleCsv(conf: DbConf) =
   res[3].add("")
   res[4].add("")
   res[5].add("")
+  res[6].add("")
 
   let f = open(pkgDir / CsvDir / SampleCsv, fmWrite)
   for row in res:
