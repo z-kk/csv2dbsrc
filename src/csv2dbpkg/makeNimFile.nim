@@ -73,6 +73,7 @@ proc readCsv(fileName: string, conf: DbConf) =
 
   res &= "\ntype\n  "
   res &= tableCls & "* = object\n"
+  res &= "    primKey: int\n"
   for col in cols:
     res &= &"    {col.name}*: "
     case col.dataType.toLowerAscii
@@ -151,6 +152,8 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"    var res: {tableCls}\n"
     for i in 0 ..< cols.len:
       let col = cols[i]
+      if col.isPrimary:
+        res &= &"    res.primKey = row[{i}].parseInt\n"
       res &= &"    res.{col.name} = row[{i}]"
       case col.dataType.toLowerAscii
       of intType:
@@ -166,6 +169,23 @@ proc readCsv(fileName: string, conf: DbConf) =
       else:
         res &= "\n"
     res &= "    result.add(res)\n"
+
+  block updateTable:
+    let valName = "rowData"
+    res &= &"proc update{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+    res &= &"  if {valName}.primKey < 1: return\n"
+    res &= &"  var sql = \"update {tableName} set \"\n"
+    res &= "  sql &= &\""
+    for col in cols:
+      if col.isPrimary:
+        continue
+      res &= &"{col.name} = " & col.toValueString(valName) & ","
+    res[^1] = '"'
+    for col in cols:
+      if col.isPrimary:
+        res &= &"\n  sql &= &\" where {col.name} = {{{valName}.primKey}}\"\n"
+        break
+    res &= "  db.exec(sql.sql)\n"
 
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
