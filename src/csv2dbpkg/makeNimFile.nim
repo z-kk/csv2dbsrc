@@ -72,6 +72,10 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= "db_mysql"
 
   res &= "\ntype\n  "
+  res &= tableCls[0..^6] & "Col* {.pure.} = enum\n    "
+  for col in cols:
+    res &= &"{col.name}, "
+  res[^2..^1] = "\n  "
   res &= tableCls & "* = object\n"
   res &= "    primKey: int\n"
   for col in cols:
@@ -150,11 +154,10 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= "  let rows = db.getAllRows(sql.sql)\n"
     res &= "  for row in rows:\n"
     res &= &"    var res: {tableCls}\n"
-    for i in 0 ..< cols.len:
-      let col = cols[i]
+    for col in cols:
       if col.isPrimary:
-        res &= &"    res.primKey = row[{i}].parseInt\n"
-      res &= &"    res.{col.name} = row[{i}]"
+        res &= &"    res.primKey = row[{tableCls[0..^6]}Col.{col.name}.ord].parseInt\n"
+      res &= &"    res.{col.name} = row[{tableCls[0..^6]}Col.{col.name}.ord]"
       case col.dataType.toLowerAscii
       of intType:
         res &= ".parseInt\n"
