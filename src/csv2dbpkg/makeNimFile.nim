@@ -190,6 +190,10 @@ proc readCsv(fileName: string, conf: DbConf) =
         break
     res &= "  db.exec(sql.sql)\n"
 
+    res &= &"proc update{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
+    res &= &"  for {valName} in {valName}Seq:\n"
+    res &= &"    db.update{tableCls}({valName})\n"
+
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
 proc makeNimFile*(conf: DbConf, pkgDir: string) =
