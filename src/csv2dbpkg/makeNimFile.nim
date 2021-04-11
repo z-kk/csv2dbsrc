@@ -91,6 +91,27 @@ proc readCsv(fileName: string, conf: DbConf) =
       res &= "string"
     res &= "\n"
 
+  block setData:
+    res &= &"proc setData{tableCls}*(data: var {tableCls}, colName, value: string) =\n"
+    res &= "  case colName\n"
+    for col in cols:
+      res &= &"  of \"{col.name}\":\n"
+      res &= &"    data.{col.name} = value"
+      case col.dataType.toLowerAscii
+      of intType:
+        res &= ".parseInt"
+      of floatType:
+        res &= ".parseFloat"
+      of dateType:
+        res &= ".parse(\""
+        case col.dataType.toLowerAscii
+        of "date":
+          res &= DateFormat
+        of "datetime":
+          res &= DateTimeFormat
+        res &= "\")"
+      res &= "\n"
+
   block createTable:
     res &= &"proc create{tableCls}*(db: DbConn) =\n"
     res &= "  let sql = \"\"\"create table if not exists " & tableName & "(\n"
@@ -157,20 +178,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     for col in cols:
       if col.isPrimary:
         res &= &"    res.primKey = row[{tableCls[0..^6]}Col.{col.name}.ord].parseInt\n"
-      res &= &"    res.{col.name} = row[{tableCls[0..^6]}Col.{col.name}.ord]"
-      case col.dataType.toLowerAscii
-      of intType:
-        res &= ".parseInt\n"
-      of floatType:
-        res &= ".parseFloat\n"
-      of dateType:
-        case col.dataType.toLowerAscii
-        of "date":
-          res &= &".parse(\"{DateFormat}\")\n"
-        of "datetime":
-          res &= &".parse(\"{DateTimeFormat}\")\n"
-      else:
-        res &= "\n"
+      res &= &"    res.setData{tableCls}(\"{col.name}\", row[{tableCls[0..^6]}Col.{col.name}.ord])\n"
     res &= "    result.add(res)\n"
 
   block updateTable:
