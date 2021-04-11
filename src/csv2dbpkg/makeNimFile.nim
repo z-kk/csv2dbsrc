@@ -99,7 +99,8 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= "  case colName\n"
     for col in cols:
       res &= &"  of \"{col.name}\":\n"
-      res &= &"    data.{col.name} = value"
+      res &= "    try:\n"
+      res &= &"      data.{col.name} = value"
       case col.dataType.toLowerAscii
       of intType:
         res &= ".parseInt"
@@ -116,6 +117,7 @@ proc readCsv(fileName: string, conf: DbConf) =
           res &= DateTimeFormat
         res &= "\")"
       res &= "\n"
+      res &= "    except: discard\n"
 
   block createTable:
     res &= &"proc create{tableCls}*(db: DbConn) =\n"
