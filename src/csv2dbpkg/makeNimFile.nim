@@ -60,7 +60,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     tableName = fileName.extractFilename.changeFileExt("")
     tableCls = tableName.toCamelCase(true) & "Table"
   var res: string = "import\n"
-  res &= "  os, strutils, strformat,\n  "
+  res &= "  os, strutils, strformat, parsecsv,\n  "
   for col in cols:
     if col.dataType.toLowerAscii in dateType:
       res &= "times,\n  "
@@ -227,6 +227,20 @@ proc readCsv(fileName: string, conf: DbConf) =
         res &= &"    f.write($row.{col.name}, ',')\n"
     res &= "    f.setFilePos(f.getFilePos - 1)\n"
     res &= "    f.writeLine(\"\")\n"
+
+  block restoreTable:
+    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= &"  let fileName = dirName / \"{tableName}.csv\"\n"
+    res &= "  var parser: CsvParser\n"
+    res &= "  defer: parser.close\n"
+    res &= &"  db.exec(\"delete from {tableName}\".sql)\n"
+    res &= "  parser.open(fileName)\n"
+    res &= "  parser.readHeaderRow\n"
+    res &= "  while parser.readRow:\n"
+    res &= &"    var data: {tableCls}\n"
+    for col in cols:
+      res &= &"    data.setData{tableCls}(\"{col.name}\", parser.rowEntry(\"{col.name}\"))\n"
+    res &= &"    db.insert{tableCls}(data)\n"
 
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
