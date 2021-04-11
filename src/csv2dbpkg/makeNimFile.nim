@@ -60,7 +60,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     tableName = fileName.extractFilename.changeFileExt("")
     tableCls = tableName.toCamelCase(true) & "Table"
   var res: string = "import\n"
-  res &= "  strutils, strformat,\n  "
+  res &= "  os, strutils, strformat,\n  "
   for col in cols:
     if col.dataType.toLowerAscii in dateType:
       res &= "times,\n  "
@@ -193,6 +193,32 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"proc update{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
     res &= &"    db.update{tableCls}({valName})\n"
+
+  block dumpTable:
+    res &= &"proc dump{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= "  dirName.createDir\n"
+    res &= "  let\n"
+    res &= &"    fileName = dirName / \"{tableName}.csv\"\n"
+    res &= "    f = fileName.open(fmWrite)\n"
+    res &= "  f.writeLine(\""
+    for col in cols:
+      res &= col.name & ","
+    res[^1] = '"'
+    res &= ")\n"
+    res &= &"  for row in db.select{tableCls}:\n"
+    for col in cols:
+      if col.dataType.toLowerAscii in dateType:
+        res &= &"    f.write(row.{col.name}.format(\""
+        case col.dataType.toLowerAscii
+        of "date":
+          res &= DateFormat
+        of "datetime":
+          res &= DateTimeFormat
+        res &= "\"), ',')\n"
+      else:
+        res &= &"    f.write($row.{col.name}, ',')\n"
+    res &= "    f.setFilePos(f.getFilePos - 1)\n"
+    res &= "    f.writeLine(\"\")\n"
 
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
