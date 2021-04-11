@@ -16,15 +16,16 @@ const
   ParentFile = "dbtables.nim"
   DateFormat = "yyyy-MM-dd"
   DateTimeFormat = "yyyy-MM-dd HH:mm:ss"
-  intType = ["integer", "int", "tinyint", "smallint", "mediumint", "bigint", "boolean"]
+  intType = ["integer", "int", "tinyint", "smallint", "mediumint", "bigint"]
   floatType = ["real", "float", "double", "decimal", "numeric"]
+  boolType = ["bool", "boolean"]
   dateType = ["date", "datetime"]
 
 proc toValueString(col: ColumnInfo, valName: string): string =
   ## make string to match ColumnInfo
   result = valName & "." & col.name
   case col.dataType.toLowerAscii
-  of intType, floatType:
+  of intType, floatType, boolType:
     result = "{" & result & "}"
   of dateType:
     case col.dataType.toLowerAscii
@@ -85,6 +86,8 @@ proc readCsv(fileName: string, conf: DbConf) =
       res &= "int"
     of floatType:
       res &= "float"
+    of boolType:
+      res &= "bool"
     of dateType:
       res &= "DateTime"
     else:
@@ -102,6 +105,8 @@ proc readCsv(fileName: string, conf: DbConf) =
         res &= ".parseInt"
       of floatType:
         res &= ".parseFloat"
+      of boolType:
+        res &= ".parseBool"
       of dateType:
         res &= ".parse(\""
         case col.dataType.toLowerAscii
@@ -215,7 +220,13 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= ")\n"
     res &= &"  for row in db.select{tableCls}:\n"
     for col in cols:
-      if col.dataType.toLowerAscii in dateType:
+      case col.dataType.toLowerAscii
+      of boolType:
+        res &= &"    if row.{col.name}:\n"
+        res &= "      f.write(\"1,\")\n"
+        res &= "    else:\n"
+        res &= "      f.write(\"0,\")\n"
+      of dateType:
         res &= &"    f.write(row.{col.name}.format(\""
         case col.dataType.toLowerAscii
         of "date":
