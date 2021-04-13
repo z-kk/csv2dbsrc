@@ -2,10 +2,10 @@
 
 version       = "0.1.0"
 author        = "z-kk"
-description   = "create db table from csv"
+description   = "create db util sources from csv"
 license       = "MIT"
 srcDir        = "src"
-bin           = @["csv2db"]
+bin           = @["csv2dbsrc"]
 binDir        = "bin"
 
 

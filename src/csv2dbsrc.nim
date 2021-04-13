@@ -2,7 +2,7 @@ import
   os, strutils, json,
   rdstdin, terminal
 import
-  csv2dbpkg / [variables, makeNimFile]
+  csv2dbsrcpkg / [variables, makeNimFile]
 
 var
   isExist: bool
