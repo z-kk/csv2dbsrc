@@ -237,9 +237,10 @@ proc readCsv(fileName: string, conf: DbConf) =
           res &= DateTimeFormat
         res &= "\"), ',')\n"
       else:
-        res &= &"    f.write($row.{col.name}, ',')\n"
+        res &= &"    f.write('\"', $row.{col.name}, '\"', ',')\n"
     res &= "    f.setFilePos(f.getFilePos - 1)\n"
     res &= "    f.writeLine(\"\")\n"
+    res &= "  f.close\n"
 
   block restoreTable:
     res &= &"proc restore{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
