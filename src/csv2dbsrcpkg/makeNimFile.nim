@@ -242,12 +242,10 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= "    f.writeLine(\"\")\n"
     res &= "  f.close\n"
 
-  block restoreTable:
-    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
-    res &= &"  let fileName = dirName / \"{tableName}.csv\"\n"
+  block insertCsv:
+    res &= &"proc insertCsv{tableCls}*(db: DbConn, fileName: string) =\n"
     res &= "  var parser: CsvParser\n"
     res &= "  defer: parser.close\n"
-    res &= &"  db.exec(\"delete from {tableName}\".sql)\n"
     res &= "  parser.open(fileName)\n"
     res &= "  parser.readHeaderRow\n"
     res &= "  while parser.readRow:\n"
@@ -255,6 +253,12 @@ proc readCsv(fileName: string, conf: DbConf) =
     for col in cols:
       res &= &"    data.setData{tableCls}(\"{col.name}\", parser.rowEntry(\"{col.name}\"))\n"
     res &= &"    db.insert{tableCls}(data)\n"
+
+  block restoreTable:
+    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= &"  let fileName = dirName / \"{tableName}.csv\"\n"
+    res &= &"  db.exec(\"delete from {tableName}\".sql)\n"
+    res &= &"  db.insertCsv{tableCls}(fileName)\n"
 
   writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
 
