@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.1"
+version       = "0.2.0"
 author        = "z-kk"
 description   = "create db util sources from csv"
 license       = "MIT"
