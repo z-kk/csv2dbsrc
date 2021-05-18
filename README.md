@@ -130,6 +130,14 @@ proc dumpTableNameTable*(db: DbConn, dirName = "csv") =
 
 make db table data csv.
 
+### insertCsvTableNameTable\*
+
+```nim
+proc insertCsvTableNameTable*(db: DbConn, fileName: string) =
+```
+
+insert rows from fileName csv. this proc not check exists rows.
+
 ### restoreTableNameTable\*
 
 ```nim
