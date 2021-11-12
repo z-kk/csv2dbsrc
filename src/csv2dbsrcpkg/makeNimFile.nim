@@ -294,7 +294,7 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   res &= "proc openDb*(): DbConn =\n"
   if conf.dbType == mysql and conf.dbPass == "":
     res &= &"  let passwd = readPasswordFromStdin(\"database password(user: {conf.dbUser}): \")\n"
-  res &= "  return open("
+  res &= "  let db = open("
   case conf.dbType
   of sqlite:
     res &= '"' & conf.dbFileName & "\", \"\", \"\", \"\""
@@ -307,6 +307,9 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
       res &= "passwd,"
     res &= '"' & conf.dbName & '"'
   res &= ")\n"
+  if conf.dbType == mysql:
+    res &= "  discard db.setEncoding(\"utf8\")\n"
+  res &= "  return db\n"
   res &= "proc createTables*(db: DbConn) =\n"
   for f in nimFiles:
     res &= &"  db.create{f.toCamelCase(true)}Table\n"
