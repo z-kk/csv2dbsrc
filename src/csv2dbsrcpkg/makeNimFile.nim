@@ -260,7 +260,10 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"  db.exec(\"delete from {tableName}\".sql)\n"
     res &= &"  db.insertCsv{tableCls}(fileName)\n"
 
-  writeFile(fileName.toCamelCase.changeFileExt(".nim"), res)
+  let
+    dir = fileName.parentDir
+    name = fileName.extractFilename.toCamelCase.changeFileExt(".nim")
+  writeFile(dir / name, res)
 
 proc makeNimFile*(conf: DbConf, pkgDir: string) =
   ## make nim file from table csv
