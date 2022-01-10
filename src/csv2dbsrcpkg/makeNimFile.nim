@@ -31,10 +31,10 @@ proc toValueString(col: ColumnInfo, valName: string): string =
     case col.dataType.toLowerAscii
     of "date":
       result &= &".format(\"{DateFormat}\")"
-      result = "date('\" & " & result & " & \"')"
+      result = "date('\" & " & result & " & &\"')"
     of "datetime":
       result &= &".format(\"{DateTimeFormat}\")"
-      result = "datetime('\" & " & result & " & \"')"
+      result = "datetime('\" & " & result & " & &\"')"
   else:
     result = "'{" & result & "}'"
 
