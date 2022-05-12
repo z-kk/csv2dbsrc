@@ -193,12 +193,17 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"proc update{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
     res &= &"  if {valName}.primKey < 1: return\n"
     res &= &"  var sql = \"update {tableName} set \"\n"
-    res &= "  sql &= &\""
+    var com = " "
     for col in cols:
       if col.isPrimary:
         continue
-      res &= &"{col.name} = " & col.toValueString(valName) & ","
-    res[^1] = '"'
+      elif col.dataType.toLowerAscii in dateType:
+        res &= &"  if {valName}.{col.name} != DateTime():\n"
+        res &= &"    sql &= &\"{com}{col.name} = " & col.toValueString(valName) & "\"\n"
+        com = ","
+      else:
+        res &= &"  sql &= &\"{com}{col.name} = " & col.toValueString(valName) & "\"\n"
+        com = ","
     for col in cols:
       if col.isPrimary:
         res &= &"\n  sql &= &\" where {col.name} = {{{valName}.primKey}}\"\n"
@@ -229,7 +234,10 @@ proc readCsv(fileName: string, conf: DbConf) =
         res &= "    else:\n"
         res &= "      f.write(\"0,\")\n"
       of dateType:
-        res &= &"    f.write(row.{col.name}.format(\""
+        res &= &"    if row.{col.name} == DateTime():\n"
+        res &= "      f.write(',')\n"
+        res &= "    else:\n"
+        res &= &"      f.write(row.{col.name}.format(\""
         case col.dataType.toLowerAscii
         of "date":
           res &= DateFormat
