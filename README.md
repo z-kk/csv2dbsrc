@@ -1,4 +1,4 @@
-# csv2db
+# csv2db [![nimble](https://raw.githubusercontent.com/yglukhov/nimble-tag/master/nimble.png)](https://github.com/yglukhov/nimble-tag)
 create db util source from csv
 
 # How to use csv2dbsrc

@@ -299,13 +299,15 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   of mysql:
     res &= "db_mysql"
   res &= ",\n  " & nimFiles.join(", ") & "\n"
+  if conf.dbType == sqlite:
+    res &= "const\n  DbFileName* = \"" & conf.dbFileName & "\"\n"
   res &= "proc openDb*(): DbConn =\n"
   if conf.dbType == mysql and conf.dbPass == "":
     res &= &"  let passwd = readPasswordFromStdin(\"database password(user: {conf.dbUser}): \")\n"
   res &= "  let db = open("
   case conf.dbType
   of sqlite:
-    res &= '"' & conf.dbFileName & "\", \"\", \"\", \"\""
+    res &= "DbFileName, \"\", \"\", \"\""
   of mysql:
     res &= '"' & conf.dbHost & "\","
     res &= '"' & conf.dbUser & "\","
