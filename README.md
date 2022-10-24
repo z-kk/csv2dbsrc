@@ -100,7 +100,7 @@ exec `insert into table_name` for each rowData.
 ### selectTableNameTable\*
 
 ```nim
-proc selectTableNameTable*(db: DbConn, whereStr = "", orderStr = ""): seq[TableNameTable] =
+proc selectTableNameTable*(db: DbConn, whereStr = "", orderBy: seq[string] = @[], whereVals: varargs[string, `$`]): seq[TableNameTable] =
 ```
 
 exec `select * from table_name` and return the result.

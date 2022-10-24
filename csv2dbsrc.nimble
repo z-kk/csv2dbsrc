@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.2.4"
+version       = "0.3.0"
 author        = "z-kk"
 description   = "create db util sources from csv"
 license       = "MIT"
@@ -11,7 +11,7 @@ binDir        = "bin"
 
 # Dependencies
 
-requires "nim >= 1.4.4"
+requires "nim >= 1.6.0"
 
 
 # Tasks

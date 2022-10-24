@@ -1,0 +1,6 @@
+name,comment,data_type,default_val,not_null,is_primary
+id,user id,INTEGER,,1,1
+user_name,user name,TEXT,,1,
+address,,TEXT,,,
+grade,school grade,INTEGER,,1,
+updated_at,updated date time,DATETIME,'9999-12-31',1,

@@ -25,18 +25,10 @@ proc toValueString(col: ColumnInfo, valName: string): string =
   ## make string to match ColumnInfo
   result = valName & "." & col.name
   case col.dataType.toLowerAscii
-  of intType, floatType, boolType:
-    result = "{" & result & "}"
-  of dateType:
-    case col.dataType.toLowerAscii
-    of "date":
-      result &= &".format(\"{DateFormat}\")"
-      result = "date('\" & " & result & " & &\"')"
-    of "datetime":
-      result &= &".format(\"{DateTimeFormat}\")"
-      result = "datetime('\" & " & result & " & &\"')"
-  else:
-    result = "'{" & result & "}'"
+  of "date":
+    result &= &".format(\"{DateFormat}\")"
+  of "datetime":
+    result &= &".format(\"{DateTimeFormat}\")"
 
 proc readCsv(fileName: string, conf: DbConf) =
   ## read csv file and make nim file
@@ -163,23 +155,29 @@ proc readCsv(fileName: string, conf: DbConf) =
     for col in cols:
       if col.isPrimary:
         continue
-      res &= col.toValueString(valName) & ","
+      res &= "?,"
     res[^1] = '"'
     res &= "\n  sql &= \")\"\n"
-    res &= "  db.exec(sql.sql)\n"
+    res &= "  db.exec(sql.sql,"
+    for col in cols:
+      if col.isPrimary:
+        continue
+      res &= col.toValueString(valName) & ","
+    res[^1] = ')'
+    res &= "\n"
 
     res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
     res &= &"    db.insert{tableCls}({valName})\n"
 
   block selectTable:
-    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderStr = \"\"): seq[{tableCls}] =\n"
+    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderBy: seq[string] = @[], whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
     res &= &"  var sql = \"select * from {tableName}\"\n"
     res &= "  if whereStr != \"\":\n"
     res &= "    sql &= \" where \" & whereStr\n"
-    res &= "  if orderStr != \"\":\n"
-    res &= "    sql &= \" order by \" & orderStr\n"
-    res &= "  let rows = db.getAllRows(sql.sql)\n"
+    res &= "  if orderBy.len > 0:\n"
+    res &= "    sql &= \" order by \" & orderBy.join(\",\")\n"
+    res &= "  let rows = db.getAllRows(sql.sql, whereVals)\n"
     res &= "  for row in rows:\n"
     res &= &"    var res: {tableCls}\n"
     for col in cols:
@@ -197,18 +195,21 @@ proc readCsv(fileName: string, conf: DbConf) =
     for col in cols:
       if col.isPrimary:
         continue
-      elif col.dataType.toLowerAscii in dateType:
-        res &= &"  if {valName}.{col.name} != DateTime():\n"
-        res &= &"    sql &= &\"{com}{col.name} = " & col.toValueString(valName) & "\"\n"
-        com = ","
       else:
-        res &= &"  sql &= &\"{com}{col.name} = " & col.toValueString(valName) & "\"\n"
+        res &= &"  sql &= &\"{com}{col.name} = ?\"\n"
         com = ","
     for col in cols:
       if col.isPrimary:
         res &= &"\n  sql &= &\" where {col.name} = {{{valName}.primKey}}\"\n"
         break
-    res &= "  db.exec(sql.sql)\n"
+    res &= "  db.exec(sql.sql,"
+    for col in cols:
+      if col.isPrimary:
+        continue
+      else:
+        res &= col.toValueString(valName) & ","
+    res[^1] = ')'
+    res &= "\n"
 
     res &= &"proc update{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
