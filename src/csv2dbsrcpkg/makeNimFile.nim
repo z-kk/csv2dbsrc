@@ -287,12 +287,12 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   res = "import\n"
   case conf.dbType
   of sqlite:
-    res &= "  db_sqlite,"
+    res &= "  db_sqlite,\n"
+    res &= "  std / os,\n"
   of mysql:
-    res &= "  db_mysql,"
+    res &= "  db_mysql,\n"
     if conf.dbPass == "":
-      res &= "\n  terminal"
-  res &= "\n  std / os,\n"
+      res &= "  std / terminal,\n"
   res &= &"  {CsvDir} / [" & nimFiles.join(", ") & "]\n"
   res &= "export\n  "
   case conf.dbType
