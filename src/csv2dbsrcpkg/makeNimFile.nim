@@ -284,15 +284,16 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     nimFiles.add(f.extractFilename.replace(".csv").toCamelCase)
 
   var res: string
-  res = "import\n  "
+  res = "import\n"
   case conf.dbType
   of sqlite:
-    res &= "db_sqlite"
+    res &= "  db_sqlite,"
   of mysql:
-    res &= "db_mysql"
+    res &= "  db_mysql,"
     if conf.dbPass == "":
-      res &= ",\n  terminal"
-  res &= ",\n  " & CsvDir & " / [" & nimFiles.join(", ") & "]\n"
+      res &= "\n  terminal"
+  res &= "\n  std / os,\n"
+  res &= &"  {CsvDir} / [" & nimFiles.join(", ") & "]\n"
   res &= "export\n  "
   case conf.dbType
   of sqlite:
@@ -301,14 +302,15 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     res &= "db_mysql"
   res &= ",\n  " & nimFiles.join(", ") & "\n"
   if conf.dbType == sqlite:
-    res &= "const\n  DbFileName* = \"" & conf.dbFileName & "\"\n"
+    res &= "proc getDbFileName*(): string =\n"
+    res &= &"  getConfigDir() / getAppFilename().extractFilename / \"{conf.dbFileName}\"\n"
   res &= "proc openDb*(): DbConn =\n"
   if conf.dbType == mysql and conf.dbPass == "":
     res &= &"  let passwd = readPasswordFromStdin(\"database password(user: {conf.dbUser}): \")\n"
   res &= "  let db = open("
   case conf.dbType
   of sqlite:
-    res &= "DbFileName, \"\", \"\", \"\""
+    res &= "getDbFileName(), \"\", \"\", \"\""
   of mysql:
     res &= '"' & conf.dbHost & "\","
     res &= '"' & conf.dbUser & "\","

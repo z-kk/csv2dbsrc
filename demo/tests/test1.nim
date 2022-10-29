@@ -3,12 +3,14 @@ import unittest
 import
   std / [os, times]
 
+import demo {.all.}
 import demopkg/dbtables
 suite "db test":
+  createConfDir()
   let db = openDb()
   defer:
     db.close
-    DbFileName.removeFile
+    getDbFileName().removeFile
 
   let user = "test_user"
 
