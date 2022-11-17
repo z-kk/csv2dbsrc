@@ -216,7 +216,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"    db.update{tableCls}({valName})\n"
 
   block dumpTable:
-    res &= &"proc dump{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= &"proc dump{tableCls}*(db: DbConn, dirName = \".\") =\n"
     res &= "  dirName.createDir\n"
     res &= "  let\n"
     res &= &"    fileName = dirName / \"{tableName}.csv\"\n"
@@ -264,7 +264,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"    db.insert{tableCls}(data)\n"
 
   block restoreTable:
-    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \".\") =\n"
     res &= &"  let fileName = dirName / \"{tableName}.csv\"\n"
     res &= &"  db.exec(\"delete from {tableName}\".sql)\n"
     res &= &"  db.insertCsv{tableCls}(fileName)\n"
