@@ -136,7 +136,7 @@ proc readCsv(fileName: string, conf: DbConf) =
 
   block insertRow:
     let valName = "rowData"
-    res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+    res &= &"proc tryInsert{tableCls}*(db: DbConn, {valName}: {tableCls}): int64 =\n"
     res &= "  var vals: seq[string]\n"
     res &= "  var sql = \"insert into " & tableName & "(\"\n"
     for col in cols:
@@ -163,7 +163,11 @@ proc readCsv(fileName: string, conf: DbConf) =
         break
     res &= "  sql &= \"?,\".repeat(vals.len)\n"
     res &= "  sql[^1] = ')'\n"
-    res &= "  db.exec(sql.sql, vals)\n"
+    res &= "  return db.tryInsertID(sql.sql, vals)\n"
+
+    res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+    res &= &"  let res = tryInsert{tableCls}(db, {valName})\n"
+    res &= "  if res < 0: db.dbError\n"
 
     res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
