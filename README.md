@@ -81,6 +81,14 @@ proc createTableNameTable*(db: DbConn) =
 
 exec `create table if not exists table_name`
 
+### tryInsertTableNameTable\*
+
+```nim
+proc tryInsertTableNameTable*(db: DbConn, rowData: TestTableTable): int64 =
+```
+
+exec `insert into table_name` and return last_insert_rowid.
+
 ### insertTableNameTable\*
 
 ```nim
@@ -100,10 +108,18 @@ exec `insert into table_name` for each rowData.
 ### selectTableNameTable\*
 
 ```nim
-proc selectTableNameTable*(db: DbConn, whereStr = "", orderBy: seq[string] = @[], whereVals: varargs[string, `$`]): seq[TableNameTable] =
+proc selectTableNameTable*(db: DbConn, whereStr = "", orderBy: seq[string], whereVals: varargs[string, `$`]): seq[TableNameTable] =
 ```
 
 exec `select * from table_name` and return the result.
+
+### selectTableNameTable\*
+
+```nim
+proc selectTestTableTable*(db: DbConn, whereStr = "", whereVals: varargs[string, `$`]): seq[TestTableTable] =
+```
+
+exec `select * from table_name` without order and return the result.
 
 ### updateTableNameTable\*
 

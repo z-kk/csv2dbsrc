@@ -26,10 +26,10 @@ suite "db test":
 
     row.user_name = "other_user"
     row.grade = 30
-    db.insertTestTableTable(row)
+    check db.tryInsertTestTableTable(row) > 1
 
   test "select rows":
-    var rows = db.selectTestTableTable("user_name = ?", @[], user)
+    var rows = db.selectTestTableTable("user_name = ?", @["id"], user)
     check rows.len > 0
     for row in rows:
       check row.grade == 50
@@ -39,7 +39,7 @@ suite "db test":
     check rows[0].grade == 30
 
   test "update row":
-    var rows = db.selectTestTableTable("user_name = ?", @[], user)
+    var rows = db.selectTestTableTable("user_name = ?", user)
     check rows.len > 0
     for r in rows:
       var row = r
