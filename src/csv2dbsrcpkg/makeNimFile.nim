@@ -25,6 +25,10 @@ proc toValueString(col: ColumnInfo, valName: string): string =
   ## make string to match ColumnInfo
   result = valName & "." & col.name
   case col.dataType.toLowerAscii
+  of intType, floatType:
+    result = "$" & result
+  of "bool":
+    result = "if " & result & ": \"1\" else: \"0\""
   of "date":
     result &= &".format(\"{DateFormat}\")"
   of "datetime":
@@ -132,46 +136,45 @@ proc readCsv(fileName: string, conf: DbConf) =
 
   block insertRow:
     let valName = "rowData"
-    res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+    res &= &"proc tryInsert{tableCls}*(db: DbConn, {valName}: {tableCls}): int64 =\n"
+    res &= "  var vals: seq[string]\n"
     res &= "  var sql = \"insert into " & tableName & "(\"\n"
     for col in cols:
       if col.isPrimary:
         res &= &"  if {valName}.{col.name} > 0:\n"
         res &= &"    sql &= \"{col.name},\"\n"
         break
-    res &= "  sql &= \"\"\""
     for col in cols:
       if col.isPrimary:
         continue
-      res &= col.name & ","
-    res[^1] = '\n'
-    res &= "    ) values (\"\"\"\n"
+      if col.dataType.toLowerAscii in dateType:
+        res &= &"  if {valName}.{col.name} != DateTime():\n"
+        res &= "    vals.add " & col.toValueString(valName) & "\n"
+        res &= &"    sql &= \"{col.name},\"\n"
+      else:
+        res &= "  vals.add " & col.toValueString(valName) & "\n"
+        res &= &"  sql &= \"{col.name},\"\n"
+    res &= "  sql[^1] = ')'\n"
+    res &= "  sql &= \" values (\"\n"
     for col in cols:
       if col.isPrimary:
         res &= &"  if {valName}.{col.name} > 0:\n"
         res &= &"    sql &= &\"{{{valName}.{col.name}}},\"\n"
         break
-    res &= "  sql &= &\""
-    for col in cols:
-      if col.isPrimary:
-        continue
-      res &= "?,"
-    res[^1] = '"'
-    res &= "\n  sql &= \")\"\n"
-    res &= "  db.exec(sql.sql,"
-    for col in cols:
-      if col.isPrimary:
-        continue
-      res &= col.toValueString(valName) & ","
-    res[^1] = ')'
-    res &= "\n"
+    res &= "  sql &= \"?,\".repeat(vals.len)\n"
+    res &= "  sql[^1] = ')'\n"
+    res &= "  return db.tryInsertID(sql.sql, vals)\n"
+
+    res &= &"proc insert{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
+    res &= &"  let res = tryInsert{tableCls}(db, {valName})\n"
+    res &= "  if res < 0: db.dbError\n"
 
     res &= &"proc insert{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
     res &= &"    db.insert{tableCls}({valName})\n"
 
   block selectTable:
-    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderBy: seq[string] = @[], whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
+    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderBy: seq[string], whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
     res &= &"  var sql = \"select * from {tableName}\"\n"
     res &= "  if whereStr != \"\":\n"
     res &= "    sql &= \" where \" & whereStr\n"
@@ -186,37 +189,38 @@ proc readCsv(fileName: string, conf: DbConf) =
       res &= &"    res.setData{tableCls}(\"{col.name}\", row[{tableCls[0..^6]}Col.{col.name}.ord])\n"
     res &= "    result.add(res)\n"
 
+    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
+    res &= &"  select{tableCls}(db, whereStr, @[], whereVals)\n"
+
   block updateTable:
     let valName = "rowData"
     res &= &"proc update{tableCls}*(db: DbConn, {valName}: {tableCls}) =\n"
     res &= &"  if {valName}.primKey < 1: return\n"
+    res &= "  var vals: seq[string]\n"
     res &= &"  var sql = \"update {tableName} set \"\n"
-    var com = " "
     for col in cols:
       if col.isPrimary:
         continue
+      if col.dataType.toLowerAscii in dateType:
+        res &= &"  if {valName}.{col.name} != DateTime():\n"
+        res &= "    vals.add " & col.toValueString(valName) & "\n"
+        res &= &"    sql &= \"{col.name} = ?,\"\n"
       else:
-        res &= &"  sql &= &\"{com}{col.name} = ?\"\n"
-        com = ","
+        res &= "  vals.add " & col.toValueString(valName) & "\n"
+        res &= &"  sql &= \"{col.name} = ?,\"\n"
+    res &= "  sql[^1] = ' '\n"
     for col in cols:
       if col.isPrimary:
-        res &= &"\n  sql &= &\" where {col.name} = {{{valName}.primKey}}\"\n"
+        res &= &"\n  sql &= &\"where {col.name} = {{{valName}.primKey}}\"\n"
         break
-    res &= "  db.exec(sql.sql,"
-    for col in cols:
-      if col.isPrimary:
-        continue
-      else:
-        res &= col.toValueString(valName) & ","
-    res[^1] = ')'
-    res &= "\n"
+    res &= "  db.exec(sql.sql, vals)\n"
 
     res &= &"proc update{tableCls}*(db: DbConn, {valName}Seq: seq[{tableCls}]) =\n"
     res &= &"  for {valName} in {valName}Seq:\n"
     res &= &"    db.update{tableCls}({valName})\n"
 
   block dumpTable:
-    res &= &"proc dump{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= &"proc dump{tableCls}*(db: DbConn, dirName = \".\") =\n"
     res &= "  dirName.createDir\n"
     res &= "  let\n"
     res &= &"    fileName = dirName / \"{tableName}.csv\"\n"
@@ -264,7 +268,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"    db.insert{tableCls}(data)\n"
 
   block restoreTable:
-    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \"csv\") =\n"
+    res &= &"proc restore{tableCls}*(db: DbConn, dirName = \".\") =\n"
     res &= &"  let fileName = dirName / \"{tableName}.csv\"\n"
     res &= &"  db.exec(\"delete from {tableName}\".sql)\n"
     res &= &"  db.insertCsv{tableCls}(fileName)\n"
