@@ -170,7 +170,7 @@ proc readCsv(fileName: string, conf: DbConf) =
     res &= &"    db.insert{tableCls}({valName})\n"
 
   block selectTable:
-    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderBy: seq[string] = @[], whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
+    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", orderBy: seq[string], whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
     res &= &"  var sql = \"select * from {tableName}\"\n"
     res &= "  if whereStr != \"\":\n"
     res &= "    sql &= \" where \" & whereStr\n"
@@ -184,6 +184,9 @@ proc readCsv(fileName: string, conf: DbConf) =
         res &= &"    res.primKey = row[{tableCls[0..^6]}Col.{col.name}.ord].parseInt\n"
       res &= &"    res.setData{tableCls}(\"{col.name}\", row[{tableCls[0..^6]}Col.{col.name}.ord])\n"
     res &= "    result.add(res)\n"
+
+    res &= &"proc select{tableCls}*(db: DbConn, whereStr = \"\", whereVals: varargs[string, `$`]): seq[{tableCls}] =\n"
+    res &= &"  select{tableCls}(db, whereStr, @[], whereVals)\n"
 
   block updateTable:
     let valName = "rowData"
