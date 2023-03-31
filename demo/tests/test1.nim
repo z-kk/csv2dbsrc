@@ -21,6 +21,7 @@ suite "db test":
     var row: TestTableTable
     row.user_name = user
     row.grade = 50
+    row.is_enabled = true
     row.updated_at = now()
     db.insertTestTableTable(row)
 
@@ -33,6 +34,7 @@ suite "db test":
     check rows.len > 0
     for row in rows:
       check row.grade == 50
+      check row.is_enabled
 
     rows = db.selectTestTableTable(orderBy = @["grade"])
     check rows.len > 0
