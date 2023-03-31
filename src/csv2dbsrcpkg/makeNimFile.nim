@@ -27,7 +27,7 @@ proc toValueString(col: ColumnInfo, valName: string): string =
   case col.dataType.toLowerAscii
   of intType, floatType:
     result = "$" & result
-  of "bool":
+  of boolType:
     result = "if " & result & ": \"1\" else: \"0\""
   of "date":
     result &= &".format(\"{DateFormat}\")"
