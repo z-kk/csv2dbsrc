@@ -128,6 +128,8 @@ proc readCsv(fileName: string, conf: DbConf) =
         res &= " not null"
       if col.isPrimary:
         res &= " primary key"
+        if conf.dbType == mysql:
+          res &= " AUTO_INCREMENT"
       if conf.dbType == mysql and col.comment != "":
         res &= " comment '" & col.comment.replace("'", "\\'") & "'"
       res &= ",\n"
