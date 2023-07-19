@@ -3,19 +3,17 @@ import unittest
 import
   std / [os, times]
 
-import demo {.all.}
 import demopkg/dbtables
 suite "db test":
-  createConfDir()
+  test "create tables":
+    createTables()
+
   let db = openDb()
   defer:
     db.close
     getDbFileName().removeFile
 
   let user = "test_user"
-
-  test "create tables":
-    db.createTables
 
   test "insert row":
     var row: TestTableTable

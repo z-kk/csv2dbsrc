@@ -309,7 +309,13 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   res &= ",\n  " & nimFiles.join(", ") & "\n"
   if conf.dbType == sqlite:
     res &= "proc getDbFileName*(): string =\n"
-    res &= &"  getConfigDir() / getAppFilename().extractFilename / \"{conf.dbFileName}\"\n"
+    res &= "  let dir = "
+    case conf.dbDirName
+    of $dtXdgConfig, $dtXdgData:
+      res &= &"getEnv(\"{conf.dbDirName}\", getConfigDir()) / getAppFilename().extractFilename\n"
+    else:
+      res &= &"\"{conf.dbDirName}\"\n"
+    res &= &"  return dir / \"{conf.dbFileName}\"\n"
   res &= "proc openDb*(): DbConn =\n"
   if conf.dbType == mysql and conf.dbPass == "":
     res &= &"  let passwd = readPasswordFromStdin(\"database password(user: {conf.dbUser}): \")\n"
@@ -329,8 +335,12 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   if conf.dbType == mysql:
     res &= "  discard db.setEncoding(\"utf8\")\n"
   res &= "  return db\n"
-  res &= "proc createTables*(db: DbConn) =\n"
+  res &= "proc createTables*() =\n"
+  if conf.dbType == sqlite:
+    res &= "  getDbFileName().parentDir.createDir\n"
+  res &= "  let db = openDb()\n"
   for f in nimFiles:
     res &= &"  db.create{f.toCamelCase(true)}Table\n"
+  res &= "  db.close\n"
 
   writeFile(pkgDir / ParentFile, res)

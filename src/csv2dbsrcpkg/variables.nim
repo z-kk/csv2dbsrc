@@ -6,6 +6,7 @@ type
   JsonKey* = enum
     dbType,
     dbFileName,
+    dbDirName,
     dbHost,
     dbUser,
     dbPass,
@@ -20,9 +21,16 @@ type
     not_null,
     is_primary
 
+  DirType* = enum
+    dtXdgConfig = "XDG_CONFIG_HOME",
+    dtXdgData = "XDG_DATA_HOME",
+    dtSameDir = "current Dir(./)",
+    dtElse = "else"
+
   DbConf* = object
     dbType*: DbType  ## database type
     dbFileName*: string  ## database file name (sqlite)
+    dbDirName*: string ## database dir name (sqlite)
     dbHost*: string  ## database host name
     dbUser*: string  ## database user name
     dbPass*: string  ## database password (not saved)

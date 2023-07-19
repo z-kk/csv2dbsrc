@@ -1,7 +1,5 @@
 import
-  os, strutils, json,
-  rdstdin, terminal
-import
+  std / [os, strutils, json, rdstdin, terminal],
   csv2dbsrcpkg / [variables, makeNimFile]
 
 var
@@ -62,7 +60,27 @@ proc readConf(): DbConf =
       echo "input database file name"
       let res = readLineFromStdin(">> ")
       conf[$dbFileName] = %res
+    if $dbDirName notin conf:
+      echo "select database dir"
+      for e in DirType.items:
+        echo "$1: $2" % [$(e.ord + 1), $e]
+      while true:
+        try:
+          let ipt = readLineFromStdin(">> ")
+          let dirType = DirType(ipt.parseInt - 1)
+          case dirType
+          of dtXdgConfig, dtXdgData:
+            conf[$dbDirName] = %dirType
+          of dtSameDir:
+            conf[$dbDirName] = %"."
+          of dtElse:
+            conf[$dbDirName] = %readLineFromStdin("dir name: ")
+          break
+        except:
+          discard
+
     result.dbFileName = conf[$dbFileName].getStr
+    result.dbDirName = conf[$dbDirName].getStr
 
   if result.dbType == mysql:
     if $dbHost notin conf:
