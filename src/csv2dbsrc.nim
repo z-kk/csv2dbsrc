@@ -1,10 +1,26 @@
 import
   std / [os, strutils, json, rdstdin, terminal],
-  csv2dbsrcpkg / [variables, makeNimFile]
+  docopt,
+  csv2dbsrcpkg / [variables, makeNimFile, nimbleInfo]
 
 var
   isExist: bool
   pkgDir: string
+
+proc readCmdOpt() =
+  ## コマンドラインオプションを確認
+  let doc = """
+    $1
+
+    Usage:
+      $1
+
+    Options:
+      -h --help   Show this screen.
+      --version   Show version.
+  """ % [AppName]
+  let args = doc.dedent.docopt(version = Version)
+  discard args
 
 proc readNimble() =
   ## nimble の情報を読み込む
@@ -181,6 +197,7 @@ proc makeSampleCsv(conf: DbConf) =
     f.writeLine(row.join(","))
 
 when isMainModule:
+  readCmdOpt()
   readNimble()
   let conf = readConf()
   if isExist:
