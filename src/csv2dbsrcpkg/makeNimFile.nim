@@ -311,8 +311,10 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     res &= "proc getDbFileName*(): string =\n"
     res &= "  let dir = "
     case conf.dbDirName
-    of $dtXdgConfig, $dtXdgData:
-      res &= &"getEnv(\"{conf.dbDirName}\", getConfigDir()) / getAppFilename().extractFilename\n"
+    of $dtXdgConfig:
+      res &= &"getConfigDir() / getAppFilename().extractFilename\n"
+    of $dtXdgData:
+      res &= &"getDataDir() / getAppFilename().extractFilename\n"
     else:
       res &= &"\"{conf.dbDirName}\"\n"
     res &= &"  return dir / \"{conf.dbFileName}\"\n"
