@@ -57,16 +57,16 @@ proc readCsv(fileName: string, conf: DbConf) =
     tableName = fileName.extractFilename.changeFileExt("")
     tableCls = tableName.toCamelCase(true) & "Table"
   var res: string = "import\n"
-  res &= "  os, strutils, strformat, parsecsv,\n  "
+  res &= "  std / [os, strutils, strformat, parsecsv],\n  "
   for col in cols:
     if col.dataType.toLowerAscii in dateType:
-      res &= "times,\n  "
+      res &= "std / times,\n  "
       break
   case conf.dbType
   of sqlite:
-    res &= "db_sqlite"
+    res &= "db_connector / db_sqlite"
   of mysql:
-    res &= "db_mysql"
+    res &= "db_connector / db_mysql"
 
   res &= "\ntype\n  "
   res &= tableCls[0..^6] & "Col* {.pure.} = enum\n    "
@@ -293,12 +293,12 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   res = "import\n"
   case conf.dbType
   of sqlite:
-    res &= "  db_sqlite,\n"
     res &= "  std / os,\n"
+    res &= "  db_connector / db_sqlite,\n"
   of mysql:
-    res &= "  db_mysql,\n"
     if conf.dbPass == "":
       res &= "  std / terminal,\n"
+    res &= "  db_connector / db_mysql,\n"
   res &= &"  {CsvDir} / [" & nimFiles.join(", ") & "]\n"
   res &= "export\n  "
   case conf.dbType
