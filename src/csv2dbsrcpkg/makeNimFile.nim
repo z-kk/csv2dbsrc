@@ -296,8 +296,6 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     res &= "  std / os,\n"
     res &= "  db_connector / db_sqlite,\n"
   of mysql:
-    if conf.dbPass == "":
-      res &= "  std / terminal,\n"
     res &= "  db_connector / db_mysql,\n"
   res &= &"  {CsvDir} / [" & nimFiles.join(", ") & "]\n"
   res &= "export\n  "
@@ -318,9 +316,10 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
     else:
       res &= &"\"{conf.dbDirName}\"\n"
     res &= &"  return dir / \"{conf.dbFileName}\"\n"
-  res &= "proc openDb*(): DbConn =\n"
-  if conf.dbType == mysql and conf.dbPass == "":
-    res &= &"  let passwd = readPasswordFromStdin(\"database password(user: {conf.dbUser}): \")\n"
+  if conf.dbType == sqlite or conf.dbPass != "":
+    res &= "proc openDb*(): DbConn =\n"
+  else:
+    res &= "proc openDb*(passwd: string): DbConn =\n"
   res &= "  let db = open("
   case conf.dbType
   of sqlite:
@@ -337,10 +336,16 @@ proc makeNimFile*(conf: DbConf, pkgDir: string) =
   if conf.dbType == mysql:
     res &= "  discard db.setEncoding(\"utf8\")\n"
   res &= "  return db\n"
-  res &= "proc createTables*() =\n"
+  if conf.dbType == sqlite or conf.dbPass != "":
+    res &= "proc createTables*() =\n"
+  else:
+    res &= "proc createTables*(passwd: string) =\n"
   if conf.dbType == sqlite:
     res &= "  getDbFileName().parentDir.createDir\n"
-  res &= "  let db = openDb()\n"
+  if conf.dbType == sqlite or conf.dbPass != "":
+    res &= "  let db = openDb()\n"
+  else:
+    res &= "  let db = openDb(passwd)\n"
   for f in nimFiles:
     res &= &"  db.create{f.toCamelCase(true)}Table\n"
   res &= "  db.close\n"
