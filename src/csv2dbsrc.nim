@@ -1,12 +1,26 @@
 import
-  os, strutils, json,
-  rdstdin, terminal
-import
-  csv2dbsrcpkg / [variables, makeNimFile]
+  std / [os, strutils, json, rdstdin, terminal],
+  docopt,
+  csv2dbsrcpkg / [variables, makeNimFile, nimbleInfo]
 
 var
   isExist: bool
   pkgDir: string
+
+proc readCmdOpt() =
+  ## コマンドラインオプションを確認
+  let doc = """
+    $1
+
+    Usage:
+      $1
+
+    Options:
+      -h --help   Show this screen.
+      --version   Show version.
+  """ % [AppName]
+  let args = doc.dedent.docopt(version = Version)
+  discard args
 
 proc readNimble() =
   ## nimble の情報を読み込む
@@ -62,7 +76,27 @@ proc readConf(): DbConf =
       echo "input database file name"
       let res = readLineFromStdin(">> ")
       conf[$dbFileName] = %res
+    if $dbDirName notin conf:
+      echo "select database dir"
+      for e in DirType.items:
+        echo "$1: $2" % [$(e.ord + 1), $e]
+      while true:
+        try:
+          let ipt = readLineFromStdin(">> ")
+          let dirType = DirType(ipt.parseInt - 1)
+          case dirType
+          of dtXdgConfig, dtXdgData:
+            conf[$dbDirName] = %dirType
+          of dtSameDir:
+            conf[$dbDirName] = %"."
+          of dtElse:
+            conf[$dbDirName] = %readLineFromStdin("dir name: ")
+          break
+        except:
+          discard
+
     result.dbFileName = conf[$dbFileName].getStr
+    result.dbDirName = conf[$dbDirName].getStr
 
   if result.dbType == mysql:
     if $dbHost notin conf:
@@ -163,6 +197,7 @@ proc makeSampleCsv(conf: DbConf) =
     f.writeLine(row.join(","))
 
 when isMainModule:
+  readCmdOpt()
   readNimble()
   let conf = readConf()
   if isExist:

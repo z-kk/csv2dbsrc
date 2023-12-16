@@ -1,21 +1,33 @@
 import unittest
 
 import
-  std / [os, times]
+  std / [times]
 
-import demo {.all.}
+when defined(sqlite):
+  import
+    std / [os]
+when defined(usePass):
+  const Passwd {.strdefine.} = ""
+
 import demopkg/dbtables
 suite "db test":
-  createConfDir()
-  let db = openDb()
+  test "create tables":
+    when defined(usePass):
+      createTables(Passwd)
+    else:
+      createTables()
+
+  when defined(usePass):
+    let db = openDb(Passwd)
+  else:
+    let db = openDb()
   defer:
+    db.exec("drop table testTable".sql)
     db.close
-    getDbFileName().removeFile
+    when defined(sqlite):
+      getDbFileName().removeFile
 
   let user = "test_user"
-
-  test "create tables":
-    db.createTables
 
   test "insert row":
     var row: TestTableTable
