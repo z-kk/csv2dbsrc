@@ -13,12 +13,12 @@ import demopkg/dbtables
 suite "db test":
   test "create tables":
     when defined(usePass):
-      createTables(Passwd)
+      createTables(password = Passwd)
     else:
       createTables()
 
   when defined(usePass):
-    let db = openDb(Passwd)
+    let db = openDb(password = Passwd)
   else:
     let db = openDb()
   defer:

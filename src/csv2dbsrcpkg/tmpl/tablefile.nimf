@@ -1,0 +1,239 @@
+#? stdtmpl | standard
+#proc tableFile(conf: DbConf, fileName: string, cols: seq[ColumnInfo]): string =
+#  let tableName = fileName.extractFilename.changeFileExt("")
+#  let tableCls = tableName.toCamelCase(true) & "Table"
+#  let containsTimeCol = cols.anyIt(it.dataType.toLowerAscii in dateType)
+#  result = ""
+import
+  std / [os, strutils, sequtils,${if containsTimeCol: " times," else: ""} parsecsv],
+  #case conf.dbType
+  #of sqlite:
+  db_connector / db_sqlite
+  #of mysql:
+  db_connector / db_mysql
+  #end case
+
+type
+  ${tableCls[0..^6]}Col* {.pure.} = enum
+    ${cols.mapIt(it.name).join(", ")}
+  ${tableCls}* = object
+    primKey: int
+    #for col in cols:
+    #case col.dataType.toLowerAscii
+    #of intType:
+    ${col.name}*: int
+    #of floatType:
+    ${col.name}*: float
+    #of boolType:
+    ${col.name}*: bool
+    #of dateType:
+    ${col.name}*: DateTime
+    #else:
+    ${col.name}*: string
+    #end case
+    #end for
+
+proc setData${tableCls}*(data: var ${tableCls}, colName, value: string) =
+  case colName
+  #for col in cols:
+  of "${col.name}":
+    try:
+      #case col.dataType.toLowerAscii
+      #of intType:
+      data.${col.name} = value.parseInt
+      #of floatType:
+      data.${col.name} = value.parseFloat
+      #of boolType:
+      data.${col.name} = value.parseBool
+      #of "date":
+      data.${col.name} = value.parse("${DateFormat}")
+      #of "datetime":
+      data.${col.name} = value.parse("${DateTimeFormat}")
+      #else:
+      data.${col.name} = value
+      #end case
+    except: discard
+  #end for
+
+proc create${tableCls}*(db: DbConn) =
+  let sql = """
+    create table if not exists ${tableName}(
+      #for idx, col in cols:
+      #  var line = col.name & " " & col.dataType
+      #  if col.length > 0: line.add "(" & $col.length & ")"
+      #  end if
+      #  if col.defaultVal != "": line.add " default " & col.defaultVal
+      #  end if
+      #  if col.notNull: line.add " not null"
+      #  end if
+      #  if col.isPrimary:
+      #    line.add " primary key"
+      #    if conf.dbType == mysql and col.dataType.toLowerAscii in intType:
+      #      line.add " AUTO_INCREMENT"
+      #    end if
+      #  end if
+      #  if conf.dbType == mysql and col.comment != "":
+      #    line.add " comment '" & col.comment.replace("'", "\\'") & "'"
+      #  end if
+      #  if idx < cols.high: line.add ","
+      #  end if
+      ${line}
+      #end for
+    )
+  """.sql
+  db.exec(sql)
+
+proc tryInsert${tableCls}*(db: DbConn, rowData: ${tableCls}): int64 =
+  var vals: seq[string]
+  var sql = "insert into ${tableName}("
+  #for col in cols:
+  #if col.isPrimary:
+    #if col.dataType.toLowerAscii in intType:
+  if rowData.${col.name} > 0:
+    sql.add "${col.name},"
+    vals.add $$rowData.${col.name}
+    #end if
+    #break
+  #end if
+  #end for
+  #for col in cols:
+  #if col.isPrimary:
+    #continue
+  #end if
+  #case col.dataType.toLowerAscii
+  #of intType, floatType:
+  sql.add "${col.name},"
+  vals.add $$rowData.${col.name}
+  #of boolType:
+  sql.add "${col.name},"
+  vals.add if rowData.${col.name}: "1" else: "0"
+  #of "date":
+  if rowData.${col.name} != DateTime():
+    sql.add "${col.name},"
+    vals.add rowData.${col.name}.format("${DateFormat}")
+  #of "datetime":
+  if rowData.${col.name} != DateTime():
+    sql.add "${col.name},"
+    vals.add rowData.${col.name}.format("${DateTimeFormat}")
+  #else:
+  sql.add "${col.name},"
+  vals.add rowData.${col.name}
+  #end case
+  #end for
+  sql[^1] = ')'
+  sql.add " values ("
+  sql.add sequtils.repeat("?", vals.len).join(",")
+  sql.add ')'
+  return db.tryInsertID(sql.sql, vals)
+proc insert${tableCls}*(db: DbConn, rowData: ${tableCls}) =
+  let res = tryInsert${tableCls}(db, rowData)
+  if res < 0: db.dbError
+proc insert${tableCls}*(db: DbConn, rowDataList: seq[${tableCls}]) =
+  for rowData in rowDataList:
+    db.insert${tableCls}(rowData)
+
+proc select${tableCls}*(db: DbConn, whereStr = "", orderBy: seq[string], whereVals: varargs[string, `$$`]): seq[${tableCls}] =
+  var sql = "select * from ${tableName}"
+  if whereStr != "":
+    sql.add " where " & whereStr
+  if orderBy.len > 0:
+    sql.add " order by " & orderBy.join(",")
+  let rows = db.getAllRows(sql.sql, whereVals)
+  for row in rows:
+    var res: ${tableCls}
+    #for col in cols:
+    #if col.isPrimary and col.dataType.toLowerAscii in intType:
+    res.primKey = row[${tableCls[0..^6]}Col.${col.name}.ord].parseInt
+    #end if
+    res.setData${tableCls}("${col.name}", row[${tableCls[0..^6]}Col.${col.name}.ord])
+    #end for
+    result.add res
+proc select${tableCls}*(db: DbConn, whereStr = "", whereVals: varargs[string, `$$`]): seq[${tableCls}] =
+  select${tableCls}(db, whereStr, @[], whereVals)
+
+proc update${tableCls}*(db: DbConn, rowData: ${tableCls}) =
+  if rowData.primKey < 1:
+    return
+  var
+    vals: seq[string]
+    sql = "update ${tableName} set "
+  #for col in cols:
+  #if col.isPrimary:
+    #continue
+  #end if
+  #case col.dataType.toLowerAscii
+  #of intType, floatType:
+  sql.add "${col.name} = ?,"
+  vals.add $$rowData.${col.name}
+  #of boolType:
+  sql.add "${col.name} = ?,"
+  vals.add if rowData.${col.name}: "1" else: "0"
+  #of "date":
+  if rowData.${col.name} != DateTime():
+    sql.add "${col.name} = ?,"
+    vals.add rowData.${col.name}.format("${DateFormat}")
+  #of "datetime":
+  if rowData.${col.name} != DateTime():
+    sql.add "${col.name} = ?,"
+    vals.add rowData.${col.name}.format("${DateTimeFormat}")
+  #else:
+  sql.add "${col.name} = ?,"
+  vals.add rowData.${col.name}
+  #end case
+  #end for
+  sql[^1] = ' '
+  #for col in cols:
+  #if col.isPrimary:
+  sql.add "where ${col.name} = " & $$rowData.primKey
+  #end if
+  #end for
+  db.exec(sql.sql, vals)
+proc update${tableCls}*(db: DbConn, rowDataList: seq[${tableCls}]) =
+  for rowData in rowDataList:
+    db.update${tableCls}(rowData)
+
+proc dump${tableCls}*(db: DbConn, dirName = ".") =
+  dirName.createDir
+  let
+    fileName = dirName / "${tableName}.csv"
+    f = fileName.open(fmWrite)
+  f.writeLine "${cols.mapIt(it.name).join(",")}"
+  for row in db.select${tableCls}:
+    #for col in cols:
+    #case col.dataType.toLowerAscii
+    #of boolType:
+    f.write if row.${col.name}: "1," else: "0,"
+    #of "date":
+    if row.${col.name} == DateTime():
+      f.write ","
+    else:
+      f.write row.${col.name}.format("${DateFormat}"), ","
+    #of "datetime":
+    if row.${col.name} == DateTime():
+      f.write ","
+    else:
+      f.write row.${col.name}.format("${DateTimeFormat}"), ","
+    #else:
+    f.write "\"$$#\"," % [$$row.${col.name}]
+    #end case
+    #end for
+    f.setFilePos(f.getFilePos - 1)
+    f.writeLine ""
+  f.close
+
+proc insertCsv${tableCls}*(db: DbConn, fileName: string) =
+  var parser: CsvParser
+  defer: parser.close
+  parser.open(fileName)
+  parser.readHeaderRow
+  while parser.readRow:
+    var data: ${tableCls}
+    #for col in cols:
+    data.setData${tableCls}("${col.name}", parser.rowEntry("${col.name}"))
+    #end for
+    db.insert${tableCls}(data)
+
+proc restore${tableCls}*(db: DbConn, dirName = ".") =
+  let fileName = dirName / "${tableName}.csv"
+  db.exec("delete from ${tableName}".sql)
+  db.insertCsv${tableCls}(fileName)
