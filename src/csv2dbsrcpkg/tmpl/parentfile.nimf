@@ -1,0 +1,65 @@
+#? stdtmpl | standard
+#proc parentFile(conf: DbConf, nimFiles: seq[string]): string =
+#  result = ""
+import
+  #case conf.dbType
+  #of sqlite:
+  std / os,
+  db_connector / db_sqlite,
+  #of mysql:
+  db_connector / db_mysql,
+  #end case
+  csvDir / [${nimFiles.join(", ")}]
+export
+  #case conf.dbType
+  #of sqlite:
+  db_sqlite,
+  #of mysql:
+  db_mysql,
+  #end case
+  ${nimFiles.join(", ")}
+
+#case conf.dbType
+#of sqlite:
+proc getDbFileName*(): string =
+  #case conf.dbDirName
+  #of $dtXdgConfig:
+  let dir = getConfigDir() / getAppFilename().extractFilename
+  #of $dtXdgData:
+  let dir = getDataDir() / getAppFilename().extractFilename
+  #else:
+  let dir = "${conf.dbDirName}"
+  #end case
+  return dir / "${conf.dbFileName}"
+#of mysql:
+const
+  DbHost = "${conf.dbHost}"
+  DbUser = "${conf.dbUser}"
+  DbPass = "${conf.dbPass}"
+  DbName = "${conf.dbName}"
+#end case
+
+#case conf.dbType
+#of sqlite:
+proc openDb*(fileName = getDbFileName()): DbConn =
+  return open(fileName, "", "", "")
+#of mysql:
+proc openDb*(host = DbHost, user = DbUser, password = DbPass, database = DbName): DbConn =
+  let db = open(host, user, password, database)
+  discard db.setEncoding("utf8")
+  return db
+#end case
+
+#case conf.dbType
+#of sqlite:
+proc createTables*(fileName = getDbFileName()) =
+  fileName.parentDir.createDir
+  let db = fileName.openDb
+#of mysql:
+proc createTables*(host = DbHost, user = DbUser, password = DbPass, database = DbName) =
+  let db = openDb(host, user, password, database)
+#end case
+  #for f in nimFiles:
+  db.create${f.toCamelCase(true)}Table
+  #end for
+  db.close

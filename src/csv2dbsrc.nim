@@ -122,7 +122,7 @@ proc readConf(): DbConf =
     result.dbName = conf[$dbName].getStr
 
   createDir(pkgDir / CsvDir)
-  writeFile(confFile, conf.pretty)
+  writeFile(confFile, conf.pretty & "\n")
 
 proc makeSampleCsv(conf: DbConf) =
   ## サンプルcsvを作成する
