@@ -98,7 +98,9 @@ proc tryInsert${tableCls}*(db: DbConn, rowData: ${tableCls}): int64 =
   #end for
   #for col in cols:
   #if col.isPrimary:
-    #continue
+    #if col.dataType.toLowerAscii in intType:
+      #continue
+    #end if
   #end if
   #case col.dataType.toLowerAscii
   #of intType, floatType:
