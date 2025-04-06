@@ -135,7 +135,9 @@ proc insert${tableCls}*(db: DbConn, rowDataList: seq[${tableCls}]) =
     db.insert${tableCls}(rowData)
 
 proc select${tableCls}*(db: DbConn, whereStr = "", orderBy: seq[string], whereVals: varargs[string, `$$`]): seq[${tableCls}] =
-  var sql = "select * from ${tableName}"
+  var sql = "select "
+  sql.add ${tableCls[0..^6]}Col.mapIt($$it).join(",")
+  sql.add " from ${tableName}"
   if whereStr != "":
     sql.add " where " & whereStr
   if orderBy.len > 0:
