@@ -147,8 +147,9 @@ proc select${tableCls}*(db: DbConn, whereStr = "", orderBy: seq[string], whereVa
     #if col.isPrimary and col.dataType.toLowerAscii in intType:
     res.primKey = row[${tableCls[0..^6]}Col.${col.name}.ord].parseInt
     #end if
-    res.setData${tableCls}("${col.name}", row[${tableCls[0..^6]}Col.${col.name}.ord])
     #end for
+    for col in ${tableCls[0..^6]}Col:
+      res.setData${tableCls}($$col, row[col.ord])
     result.add res
 proc select${tableCls}*(db: DbConn, whereStr = "", whereVals: varargs[string, `$$`]): seq[${tableCls}] =
   select${tableCls}(db, whereStr, @[], whereVals)
